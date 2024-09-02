@@ -81,6 +81,7 @@ class resnet(nn.Module):
         out = self.avg_pool(out)
         out = self.flatten(out)
         out = self.fc(out)
+        out = self.sigmoid(out)
 
         return out
 

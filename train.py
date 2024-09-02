@@ -14,8 +14,8 @@ def get_args_parser(add_help=True):
     parser = argparse.ArgumentParser(description='DL Template for Pytorch', add_help=add_help)
     parser.add_argument('--train_path', default='./data', type=str)
     #
-    parser.add_argument('--height', default=52, type=int)
-    parser.add_argument('--width', default=52, type=int)
+    parser.add_argument('--height', default=128, type=int)
+    parser.add_argument('--width', default=128, type=int)
     parser.add_argument('--channel', default=3, type=int)
     #
     parser.add_argument('--batch_size', default=6, type=int)

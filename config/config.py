@@ -11,7 +11,7 @@ def get_config_dict():
     solver = dict(
         name='sgd',
         gpu_id=0,
-        lr0=1e-4,
+        lr0=1e-3,
         momentum=0.937,
         weight_decay=5e-4
     )

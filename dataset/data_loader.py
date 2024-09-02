@@ -25,7 +25,7 @@ class data_class(Dataset):
         self.task = task
         #
         # 이미지 .mat 파일로 변경
-        image_to_mat(path)
+        self.le, self.ohe = image_to_mat(path)
         self.data_paths = sorted(glob.glob(os.path.join(path, '*/*.mat')))
         #
         self.fn_transform = self.get_transformer()
