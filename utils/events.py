@@ -30,7 +30,9 @@ def write_tbPR(tblogger, TP, FP, FN, epoch, task):
 
 def write_tbimg(tblogger, imgs, step):
     for i in range(len(imgs)):
-        tblogger.add_image('train_imgs/train_batch_{}'.format(i),
-                           imgs[i].contiguous().permute(1, 2, 0),
-                           step + 1,
-                           dataformats='HWC')
+        tblogger.add_image(
+            'train_imgs/train_batch_{}'.format(i),
+            imgs[i].contiguous().permute(1, 2, 0),
+            step + 1,
+            dataformats='HWC'
+        )

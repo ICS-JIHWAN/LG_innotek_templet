@@ -63,6 +63,8 @@ def image_to_mat(root_path):
                 mat_dict['class'] = cls
 
                 savemat(os.path.join(p.parent / f'{p.stem}.mat'), mat_dict)
+
+        return le, ohe
     else:
         raise NotImplementedError('There is no class directory in the data folder!!')
 

@@ -116,7 +116,7 @@ class Trainer:
         return scheduler
 
     def build_criterion(self):
-        return torch.nn.BCEWithLogitsLoss()
+        return torch.nn.CrossEntropyLoss()
 
     def start_train(self):
         try:
@@ -147,7 +147,8 @@ class Trainer:
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-
+            #
+            pbar.set_postfix(loss=round(loss.item(), 2))
             # Get statistics
             TP, FP, FN = self.get_statistics(
                 self.model.predict(output.detach()), labels,
@@ -156,9 +157,7 @@ class Trainer:
             #
             if step % 2 == 0:
                 write_tbloss(self.tblogger, loss.detach().cpu(), (epoch * self.max_epoch + step))
-
-            pbar.set_postfix(loss=round(loss.item(), 2))
-
+            write_tbimg(self.tblogger, images.detach().cpu(), step)
         write_tbPR(self.tblogger, TP, FP, FN, epoch, 'train')
 
         self.scheduler.step()
