@@ -12,9 +12,10 @@ from utils.events import write_tbimg, write_tbloss, write_tbPR
 
 
 class Trainer:
-    def __init__(self, config, device=torch.device('cpu')):
+    def __init__(self, args, config, device=torch.device('cpu')):
         super().__init__()
         self.cfg = config
+        self.args = args
         self.device = device
         #
         self.save_path = self.make_save_path()
@@ -37,15 +38,15 @@ class Trainer:
         self.compute_loss = self.build_criterion()
 
         # parameters
-        self.max_epoch = self.cfg['solver']['max_epoch']
+        self.max_epoch = self.args.epoch
         self.max_stepnum = len(self.train_loader)
 
     def get_dataloader(self):
-        height, width = self.cfg['dataset']['height'], self.cfg['dataset']['width']
-        batch_size = self.cfg['dataset']['batch_size']
-        num_workers = self.cfg['dataset']['num_workers']
+        height, width = self.args.height, self.args.width
+        batch_size = self.args.batch_size
+        num_workers = self.args.num_workers
         #
-        train_path = self.cfg['dataset']['train_path']
+        train_path = self.args.train_path
         train_object = data_class(
             path=train_path,
             height=height,
@@ -116,10 +117,12 @@ class Trainer:
     def train_one_epoch(self, epoch):
         pbar = tqdm(enumerate(self.train_loader), total=self.max_stepnum)
         #
-        TP = np.zeros(8)
-        FP = np.zeros(8)
-        FN = np.zeros(8)
-        TN = np.zeros(8)
+        TP = np.zeros(self.cfg['model']['num_class'])
+        FP = np.zeros(self.cfg['model']['num_class'])
+        FN = np.zeros(self.cfg['model']['num_class'])
+        TN = np.zeros(self.cfg['model']['num_class'])
+        #
+        self.model.train()
         #
         for step, batch_data in pbar:
             images = batch_data[0].to(self.device)
@@ -141,6 +144,8 @@ class Trainer:
             #
             if step % 2 == 0:
                 write_tbloss(self.tblogger, loss.detach().cpu(), (epoch * self.max_epoch + step))
+
+            pbar.set_postfix(loss=round(loss, 2))
 
         write_tbPR(self.tblogger, TP, FP, FN, epoch, 'train')
 
