@@ -1,7 +1,9 @@
 import torch.optim as optim
 
+
 def build_optimizer(cfg, model):
-    if cfg['solver']['name'] == 'sgd':
+    optim_name = cfg['solver']['name']
+    if optim_name == 'sgd':
         optimizer = optim.SGD(
             model.parameters(),
             lr=cfg['solver']['lr0'],
@@ -11,5 +13,6 @@ def build_optimizer(cfg, model):
         )
     else:
         raise NotImplementedError
-
+    print(f'Optimizer 초기화 완료 !!\n'
+          f'Optimizer : {optim_name} \t Params : {optimizer.defaults}\n')
     return optimizer

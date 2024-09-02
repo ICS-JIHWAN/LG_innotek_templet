@@ -42,6 +42,7 @@ class Trainer:
         self.max_stepnum = len(self.train_loader)
 
     def get_dataloader(self):
+        # Data loader configurations
         height, width = self.args.height, self.args.width
         batch_size = self.args.batch_size
         num_workers = self.args.num_workers
@@ -71,8 +72,10 @@ class Trainer:
         return save_path
 
     def build_model(self):
+        # Model Configurations
         model_name = self.cfg['model']['name']
         num_class = self.cfg['model']['num_class']
+        #
         if model_name == 'lenet':
             from model.lenet import lenet
             model = lenet(num_class=num_class).to(self.device)
@@ -85,15 +88,22 @@ class Trainer:
         else:
             print('Model load fail')
             raise NotImplementedError
+        #
+        print(f'Model 초기화 완료 !!\n'
+              f'Model : {model_name}\n')
+        #
         return model
 
     def build_optimizer(self):
+        #
         from solver.fn_optimizer import build_optimizer
         optimizer = build_optimizer(self.cfg, self.model)
+        #
         return optimizer
 
     def build_scheduler(self):
-        if self.cfg['scheduler']['name'] == 'steplr':
+        sched_name = self.cfg['scheduler']['name']
+        if sched_name == 'steplr':
             scheduler = torch.optim.lr_scheduler.StepLR(
                 self.optimizer,
                 gamma=0.9,
@@ -101,6 +111,8 @@ class Trainer:
             )
         else:
             raise NotImplementedError
+        print(f'Scheduler 초기화 완료 !!\n'
+              f'Scheduler : {sched_name} \t Start lr : {scheduler.get_last_lr()[0]}\n')
         return scheduler
 
     def build_criterion(self):
@@ -145,7 +157,7 @@ class Trainer:
             if step % 2 == 0:
                 write_tbloss(self.tblogger, loss.detach().cpu(), (epoch * self.max_epoch + step))
 
-            pbar.set_postfix(loss=round(loss, 2))
+            pbar.set_postfix(loss=round(loss.item(), 2))
 
         write_tbPR(self.tblogger, TP, FP, FN, epoch, 'train')
 

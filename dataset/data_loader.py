@@ -1,6 +1,7 @@
 import os
 import glob
 import numpy as np
+import time
 
 import torch
 import torchvision.transforms as transforms
@@ -14,17 +15,25 @@ from torch.utils.data import Dataset
 class data_class(Dataset):
     def __init__(self, path, width=52, height=52, augmentation=False, task='train'):
         super().__init__()
+        # Data loader 초기화 시작
+        start = time.time()
+        #
         assert task == 'train' or task == 'val' or task == 'test', 'Invalid task...'
-
+        #
         self.img_size = (height, width)
         self.augmentation = augmentation
         self.task = task
-
+        #
         # 이미지 .mat 파일로 변경
         image_to_mat(path)
         self.data_paths = sorted(glob.glob(os.path.join(path, '*/*.mat')))
-
+        #
         self.fn_transform = self.get_transformer()
+        #
+        end = time.time()
+        # logger 출력
+        print(f'Data loader 초기화 완료 !! {end - start:.5f} sec...\n'
+              f'총 학습 데이터 수 : {self.__len__()}\n')
 
     def __len__(self):
         return len(self.data_paths)
