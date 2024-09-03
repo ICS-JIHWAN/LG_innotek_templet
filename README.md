@@ -34,6 +34,7 @@ $ pip install tqdm
 ```
 
 ### 5. scipy
+* No module named scipy 발생 시 설치
 ```
 $ pip install scipy
 ```
