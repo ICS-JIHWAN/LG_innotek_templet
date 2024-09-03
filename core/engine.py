@@ -1,5 +1,5 @@
-import time
 import os
+import sys
 import torch
 import numpy as np
 
@@ -40,6 +40,9 @@ class Trainer:
         # parameters
         self.max_epoch = self.args.epoch
         self.max_stepnum = len(self.train_loader)
+        #
+        self.best_score = 0.0
+        self.best_model = None
 
     def get_dataloader(self):
         # Data loader configurations
@@ -57,11 +60,13 @@ class Trainer:
         train_loader = DataLoader(
             train_object,
             batch_size=batch_size,
-            shuffle=False,
+            shuffle=True,
             num_workers=num_workers,
             collate_fn=data_class.collate_fn
         )
-
+        #
+        self.num_class = train_object.num_class
+        #
         return train_loader
 
     def make_save_path(self):
@@ -74,7 +79,7 @@ class Trainer:
     def build_model(self):
         # Model Configurations
         model_name = self.cfg['model']['name']
-        num_class = self.cfg['model']['num_class']
+        num_class = self.num_class
         #
         if model_name == 'lenet':
             from model.lenet import lenet
@@ -109,10 +114,12 @@ class Trainer:
                 gamma=0.9,
                 step_size=5
             )
+        elif sched_name is None:
+            scheduler = None
         else:
             raise NotImplementedError
         print(f'Scheduler 초기화 완료 !!\n'
-              f'Scheduler : {sched_name} \t Start lr : {scheduler.get_last_lr()[0]}\n')
+              f'Scheduler : {sched_name}\n')
         return scheduler
 
     def build_criterion(self):
@@ -127,15 +134,16 @@ class Trainer:
             raise
 
     def train_one_epoch(self, epoch):
+        #
+        print(f'Train start : {epoch} / {self.max_epoch}')
         pbar = tqdm(enumerate(self.train_loader), total=self.max_stepnum)
         #
-        TP = np.zeros(self.cfg['model']['num_class'])
-        FP = np.zeros(self.cfg['model']['num_class'])
-        FN = np.zeros(self.cfg['model']['num_class'])
-        TN = np.zeros(self.cfg['model']['num_class'])
+        TP = np.zeros(self.num_class)
+        FP = np.zeros(self.num_class)
+        FN = np.zeros(self.num_class)
+        TN = np.zeros(self.num_class)
         #
         self.model.train()
-        #
         for step, batch_data in pbar:
             images = batch_data[0].to(self.device)
             labels = batch_data[1].to(self.device)
@@ -159,10 +167,10 @@ class Trainer:
                 write_tbloss(self.tblogger, loss.detach().cpu(), (epoch * self.max_epoch + step))
             write_tbimg(self.tblogger, images.detach().cpu(), step)
         write_tbPR(self.tblogger, TP, FP, FN, epoch, 'train')
-
-        self.scheduler.step()
-
-        print('finish one epoch')
+        #
+        if self.scheduler is not None:
+            self.scheduler.step()
+        #
 
     @staticmethod
     def get_statistics(pred, true, TP, FP, FN):

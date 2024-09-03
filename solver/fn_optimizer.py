@@ -2,14 +2,20 @@ import torch.optim as optim
 
 
 def build_optimizer(cfg, model):
+    # Optimizer torch.optim 공식 홈페이지에서 parameter 확인 및 변경
     optim_name = cfg['solver']['name']
     if optim_name == 'sgd':
         optimizer = optim.SGD(
             model.parameters(),
             lr=cfg['solver']['lr0'],
             momentum=cfg['solver']['momentum'],
-            nesterov=True,
-            weight_decay=5e-4
+            weight_decay=cfg['solver']['weight_decay'],
+        )
+    elif optim_name == 'adam':
+        optimizer = optim.Adam(
+            model.parameters(),
+            lr=cfg['solver']['lr0'],
+            weight_decay=cfg['solver']['weight_decay'],
         )
     else:
         raise NotImplementedError

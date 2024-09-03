@@ -9,15 +9,15 @@ def get_config_dict():
     )
 
     solver = dict(
-        name='sgd',
+        name='sgd',     # [sgd|adam]
         gpu_id=0,
         lr0=1e-3,
-        momentum=0.937,
-        weight_decay=5e-4
+        momentum=0,
+        weight_decay=0,
     )
 
     scheduler = dict(
-        name='steplr'
+        name=None,      # [None|steplr]
     )
 
     # Merge all information into a dictionary variable
