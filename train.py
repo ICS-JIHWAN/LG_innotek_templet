@@ -18,7 +18,7 @@ def get_args_parser(add_help=True):
     parser.add_argument('--width', default=128, type=int)
     parser.add_argument('--channel', default=3, type=int)
     #
-    parser.add_argument('--batch_size', default=6, type=int)
+    parser.add_argument('--batch_size', default=1, type=int)
     parser.add_argument('--epoch', default=100, type=int)
     parser.add_argument('--num_workers', default=0, type=int)
     #

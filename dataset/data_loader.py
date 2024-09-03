@@ -1,14 +1,14 @@
 import os
 import glob
 import numpy as np
+import pickle
 import time
 
 import torch
 import torchvision.transforms as transforms
 
 from PIL import Image
-from scipy import io
-from dataset.make_dataset import image_to_mat
+from dataset.make_dataset import image_to_pkl
 from torch.utils.data import Dataset
 
 
@@ -24,9 +24,9 @@ class data_class(Dataset):
         self.augmentation = augmentation
         self.task = task
         #
-        # 이미지 .mat 파일로 변경
-        self.num_class = image_to_mat(path)
-        self.data_paths = sorted(glob.glob(os.path.join(path, '*/*.mat')))
+        # 이미지 .pkl 파일로 변경
+        self.num_class = image_to_pkl(path)
+        self.data_paths = sorted(glob.glob(os.path.join(path, '*/*.pkl')))
         #
         self.fn_transform = self.get_transformer()
         #
@@ -39,7 +39,8 @@ class data_class(Dataset):
         return len(self.data_paths)
 
     def __getitem__(self, idx):
-        data_dict = io.loadmat(self.data_paths[idx])
+        with open(self.data_paths[idx], 'rb') as f:
+            data_dict = pickle.load(f)
 
         image = data_dict['image']
 
@@ -49,7 +50,7 @@ class data_class(Dataset):
 
         image_tensor = self.fn_transform(image_rgb_pil).unsqueeze(dim=0)
 
-        label_numpy = torch.tensor(data_dict['one_hot_label'])
+        label_numpy = torch.tensor(data_dict['one_hot_label']).unsqueeze(dim=0)
 
         return image_tensor, label_numpy
 
@@ -58,24 +59,23 @@ class data_class(Dataset):
             if self.task == 'train':
                 fn_trans = transforms.Compose(
                     [
-                        transforms.Resize(self.img_size, interpolation=transforms.InterpolationMode.NEAREST),
+                        transforms.Resize(self.img_size),
                         transforms.RandomHorizontalFlip(),
                         transforms.RandomVerticalFlip(),
-                        transforms.RandomRotation(degrees=(0, 90)),
                         transforms.ToTensor(),
                     ]
                 )
             else:
                 fn_trans = transforms.Compose(
                     [
-                        transforms.Resize(self.img_size, interpolation=transforms.InterpolationMode.NEAREST),
+                        transforms.Resize(self.img_size),
                         transforms.ToTensor(),
                     ]
                 )
         else:
             fn_trans = transforms.Compose(
                 [
-                    transforms.Resize(self.img_size, interpolation=transforms.InterpolationMode.NEAREST),
+                    transforms.Resize(self.img_size),
                     transforms.ToTensor(),
                 ]
             )

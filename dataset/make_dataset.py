@@ -2,28 +2,28 @@ import os
 import cv2
 import glob
 import numpy as np
+import pickle
 
 from pathlib import Path
 from tqdm import tqdm
 from PIL import Image
-from scipy.io import savemat
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
 IMG_FORMATS = ["bmp", "jpg", "jpeg", "png", "tif", "tiff", "dng", "webp", "mpo"]
 
 
-def image_to_mat(root_path):
+def image_to_pkl(root_path):
     """
-    summary : Data 폴더를 읽은 후 image 파일을 .mat 확장자로 변경 해주는 함수.
-              .mat 확장자 파일에는 정보 (Color image, 경로, label, etc..)를 담고 있음.
+    summary : Data 폴더를 읽은 후 image 파일을 .pkl 확장자로 변경 해주는 함수.
+              .pkl 확장자 파일에는 정보 (Color image, 경로, label, etc..)를 담고 있음.
               Data 폴더 안에 있는 폴더들을 label 로 생각.
-              mat_class 형태의 폴더 안에 새로 저장
+              pkl_class 형태의 폴더 안에 새로 저장
     :param root_path: Root path
     :return: number of classes
     """
     # class 정보
     try:
-        class_names = [name for name in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, name)) and not('mat' in name)]
+        class_names = [name for name in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, name)) and not('pkl' in name)]
     except:
         raise NotImplementedError('Checking root directory "{}!!"'.format(root_path))
 
@@ -43,7 +43,7 @@ def image_to_mat(root_path):
             data_paths = glob.glob(os.path.join(root_path, cls + '/*'))
 
             # new directory 생성
-            new_dir = os.path.join(root_path, 'mat_' + cls)
+            new_dir = os.path.join(root_path, 'pkl_' + cls)
             os.makedirs(new_dir, exist_ok=True)
 
             pbar = tqdm(enumerate(data_paths))
@@ -51,7 +51,7 @@ def image_to_mat(root_path):
                 p = Path(path)
 
                 # 변환된 파일이 있으면 제외
-                if (Path(new_dir) / f'{p.stem}.mat').exists():
+                if (Path(new_dir) / f'{p.stem}.pkl').exists():
                     continue
 
                 try:
@@ -61,15 +61,16 @@ def image_to_mat(root_path):
                     im = cv2.cvtColor(np.asarray(Image.open(path)), cv2.COLOR_RGB2BGR)
                     assert im is not None, f"Image Not Found {path}, workdir: {os.getcwd()}"
 
-                # .mat로 저장
-                mat_dict = dict()
-                mat_dict['original_path']  = path
-                mat_dict['image'] = im
-                mat_dict['integer_label'] = int_label[cls_idx]
-                mat_dict['one_hot_label'] = one_hot_label[cls_idx]
-                mat_dict['class'] = cls
+                # .pkl로 저장
+                pkl_dict = dict()
+                pkl_dict['original_path']  = path
+                pkl_dict['image'] = im
+                pkl_dict['integer_label'] = int_label[cls_idx]
+                pkl_dict['one_hot_label'] = one_hot_label[cls_idx]
+                pkl_dict['class'] = cls
 
-                savemat(Path(new_dir) / f'{p.stem}.mat', mat_dict)
+                with open(Path(new_dir) / f'{p.stem}.pkl', 'wb') as f:
+                    pickle.dump(pkl_dict, f)
 
         return num_class
     else:
@@ -81,4 +82,4 @@ if __name__ == "__main__":
 
     os.listdir(ROOT_PATH)
 
-    image_to_mat(ROOT_PATH)
+    image_to_pkl(ROOT_PATH)
