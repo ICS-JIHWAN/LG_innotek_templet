@@ -32,7 +32,7 @@ def write_tbPR(tblogger, TP, FP, FN, epoch, task):
         tblogger.add_scalar('recall/{}/{}'.format(defect_idx, task), R[defect_idx], epoch + 1)
 
 
-def write_tbimg(tblogger, imgs, step, real_classes=None, pred_classes=None, text_color=(255, 255, 255)):
+def write_tbimg(tblogger, imgs, step, real_classes=None, pred_classes=None, task='train'):
     for i in range(len(imgs)):
         print_img = transforms.ToPILImage()(imgs[i])
         #
@@ -52,7 +52,7 @@ def write_tbimg(tblogger, imgs, step, real_classes=None, pred_classes=None, text
         #
         try:
             tblogger.add_image(
-                'train_imgs/class_{}'.format(real_classes[i]),
+                f'{task}_imgs/class_{real_classes[i]}',
                 transforms.ToTensor()(print_img),
                 step + 1,
                 dataformats='CHW'

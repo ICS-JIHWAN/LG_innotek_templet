@@ -211,7 +211,7 @@ class Trainer:
 
     def valid_one_epoch(self, epoch):
         print(f'\nValidation start : {epoch} / {self.max_epoch}')
-        pbar = tqdm(enumerate(self.valid_loader), total=self.max_stepnum)
+        pbar = tqdm(enumerate(self.valid_loader))
         #
         correct = 0
         total = 0
@@ -241,7 +241,8 @@ class Trainer:
                     # Image print
                     write_tbimg(
                         self.tblogger, images.detach().cpu(),
-                        step, cls_names, self.valid_loader.dataset.le.inverse_transform(predict.cpu())
+                        step, cls_names, self.valid_loader.dataset.le.inverse_transform(predict.cpu()),
+                        task='valid'
                     )
 
         val_acc = correct / total
