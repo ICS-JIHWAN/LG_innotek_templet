@@ -211,7 +211,7 @@ class Trainer:
 
     def valid_one_epoch(self, epoch):
         print(f'\nValidation start : {epoch} / {self.max_epoch}')
-        pbar = tqdm(enumerate(self.train_loader), total=self.max_stepnum)
+        pbar = tqdm(enumerate(self.valid_loader), total=self.max_stepnum)
         #
         correct = 0
         total = 0

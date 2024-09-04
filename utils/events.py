@@ -50,9 +50,12 @@ def write_tbimg(tblogger, imgs, step, real_classes=None, pred_classes=None, text
         #
         draw.text((x + margin, y + margin), text, font=font, fill="white")
         #
-        tblogger.add_image(
-            'train_imgs/class_{}'.format(real_classes[i]),
-            transforms.ToTensor()(print_img),
-            step + 1,
-            dataformats='CHW'
-        )
+        try:
+            tblogger.add_image(
+                'train_imgs/class_{}'.format(real_classes[i]),
+                transforms.ToTensor()(print_img),
+                step + 1,
+                dataformats='CHW'
+            )
+        except:
+            None
