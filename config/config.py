@@ -9,7 +9,7 @@ def get_config_dict():
     )
 
     solver = dict(
-        name='sgd',     # [sgd|adam]
+        name='adam',     # [sgd|adam]
         gpu_id=0,
         lr0=1e-3,
         momentum=0,

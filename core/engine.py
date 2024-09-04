@@ -128,7 +128,8 @@ class Trainer:
     def start_train(self):
         try:
             for epoch in range(self.max_epoch):
-                self.train_one_epoch(epoch)
+                # self.train_one_epoch(epoch)
+                self.valid_one_epoch(epoch)
         except:
             print('Error in training loop...')
             raise
@@ -171,6 +172,34 @@ class Trainer:
         if self.scheduler is not None:
             self.scheduler.step()
         #
+
+    def valid_one_epoch(self, epoch):
+        print(f'Validation start : {epoch} / {self.max_epoch}')
+        pbar = tqdm(enumerate(self.train_loader), total=self.max_stepnum)
+        #
+        self.model.eval()
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for step, batch_data in pbar:
+                images = batch_data[0].to(self.device)
+                labels = batch_data[1].to(self.device)
+                int_labels = batch_data[2]
+                cls_names  = batch_data[3]
+                #
+                outputs = self.model(images)
+                #
+                _, predict = torch.max(outputs, 1)
+                #
+                total += labels.size(0)
+                correct += (predict == int_labels).sum().item()
+                #
+                pbar.set_postfix(acc=round(correct / total, 2))
+
+        val_acc = correct / total
+        if val_acc > self.best_score:
+            self.best_score = val_acc
+            torch.save(self.model.state_dict(), os.path.join(self.save_path, 'best_model.pth'))
 
     @staticmethod
     def get_statistics(pred, true, TP, FP, FN):

@@ -50,9 +50,11 @@ class data_class(Dataset):
 
         image_tensor = self.fn_transform(image_rgb_pil).unsqueeze(dim=0)
 
-        label_numpy = torch.tensor(data_dict['one_hot_label']).unsqueeze(dim=0)
+        int_label = torch.tensor(data_dict['integer_label']).unsqueeze(dim=0)
+        one_hot_label = torch.tensor(data_dict['one_hot_label']).unsqueeze(dim=0)
+        class_name = data_dict['class']
 
-        return image_tensor, label_numpy
+        return image_tensor, one_hot_label, int_label, class_name
 
     def get_transformer(self):
         if self.augmentation:
@@ -84,12 +86,14 @@ class data_class(Dataset):
 
     @staticmethod
     def collate_fn(batch):
-        inputs, labels = zip(*batch)
+        inputs, one_hot_labels, int_labels, class_names = zip(*batch)
 
-        inputs = torch.cat(inputs, dim=0)
-        labels = torch.cat(labels, dim=0)
+        inputs         = torch.cat(inputs, dim=0)
+        one_hot_labels = torch.cat(one_hot_labels, dim=0)
+        int_labels     = torch.cat(int_labels, dim=0)
+        class_names    = list(class_names)
 
-        return inputs, labels
+        return inputs, one_hot_labels, int_labels, class_names
 
 
 if __name__ == '__main__':
