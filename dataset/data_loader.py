@@ -25,7 +25,7 @@ class data_class(Dataset):
         self.task = task
         #
         # 이미지 .pkl 파일로 변경
-        self.num_class = image_to_pkl(path)
+        self.le, self.num_class = image_to_pkl(path)
         self.data_paths = sorted(glob.glob(os.path.join(path, '*/*.pkl')))
         #
         self.fn_transform = self.get_transformer()

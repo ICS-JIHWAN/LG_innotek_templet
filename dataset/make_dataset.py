@@ -72,7 +72,7 @@ def image_to_pkl(root_path):
                 with open(Path(new_dir) / f'{p.stem}.pkl', 'wb') as f:
                     pickle.dump(pkl_dict, f)
 
-        return num_class
+        return le, num_class
     else:
         raise NotImplementedError('There is no class directory in the data folder!!')
 

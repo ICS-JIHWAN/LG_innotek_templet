@@ -1,10 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os
+import cv2
 import yaml
 import logging
 import shutil
 
+import torchvision.transforms as transforms
+
+from PIL import Image, ImageDraw, ImageFont
 
 def set_logging(name=None):
     rank = int(os.getenv('RANK', -1))
@@ -16,8 +20,8 @@ LOGGER = set_logging(__name__)
 NCOLS = min(100, shutil.get_terminal_size().columns)
 
 
-def write_tbloss(tblogger, losses, step):
-    tblogger.add_scalar("training/loss", losses, step + 1)
+def write_scalar(tblogger, items, step, title_text=None):
+    tblogger.add_scalar(f"{title_text}", items, step + 1)
 
 
 def write_tbPR(tblogger, TP, FP, FN, epoch, task):
@@ -28,11 +32,27 @@ def write_tbPR(tblogger, TP, FP, FN, epoch, task):
         tblogger.add_scalar('recall/{}/{}'.format(defect_idx, task), R[defect_idx], epoch + 1)
 
 
-def write_tbimg(tblogger, imgs, step):
+def write_tbimg(tblogger, imgs, step, real_classes=None, pred_classes=None, text_color=(255, 255, 255)):
     for i in range(len(imgs)):
+        print_img = transforms.ToPILImage()(imgs[i])
+        #
+        draw = ImageDraw.Draw(print_img)
+        #
+        font = ImageFont.load_default()
+        text = f'pred : {pred_classes[i]}'
+        text_bbox = draw.textbbox((0, 0), text, font=font)
+        text_width = text_bbox[2] - text_bbox[0]
+        text_height = text_bbox[3] - text_bbox[1]
+        #
+        margin = 5
+        x, y = margin, margin
+        draw.rectangle([x, y, x + text_width + margin, y + text_height + margin], fill="black")
+        #
+        draw.text((x + margin, y + margin), text, font=font, fill="white")
+        #
         tblogger.add_image(
-            'train_imgs/train_batch_{}'.format(i),
-            imgs[i].contiguous().permute(1, 2, 0),
+            'train_imgs/class_{}'.format(real_classes[i]),
+            transforms.ToTensor()(print_img),
             step + 1,
-            dataformats='HWC'
+            dataformats='CHW'
         )
