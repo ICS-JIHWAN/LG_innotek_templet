@@ -1,5 +1,6 @@
 # LG-Innotek Pytorch 기반 Sample Baseline Code
-
+## ■ Overall Architecture
+![캡처](readme_image/Overall_Architecture.png)
 ## ■ Setup
 ### 1. Develop environments
 * Window 10
