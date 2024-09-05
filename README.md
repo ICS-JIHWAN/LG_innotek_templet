@@ -1,6 +1,6 @@
 # LG-Innotek Pytorch 기반 Sample Baseline Code
 
-## Setup
+## ■ Setup
 ### 1. Develop environments
 * Window 10
 * Python 3.8.0
@@ -58,3 +58,15 @@ $ pip install -U scikit-learn
 ```
 $ pip install PyYAML
 ```
+
+## ■ Tensorboard implementation
+```
+$ tensorboard --logdir=model_names --port=6006
+```
+### 1. Image  : Input images & prediction results
+![캡처](readme_image/tensorboard_train.PNG)
+### 2. Scalar : Accuracy & loss
+- Train
+![캡처](readme_image/train_acc&loss.PNG)
+- validation
+![캡처](readme_image/validation_acc.PNG)
