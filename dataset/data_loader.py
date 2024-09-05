@@ -32,8 +32,12 @@ class data_class(Dataset):
         #
         end = time.time()
         # logger 출력
-        print(f'Data loader 초기화 완료 !! {end - start:.5f} sec...\n'
-              f'총 학습 데이터 수 : {self.__len__()}\n')
+        if task == 'train':
+            print(f'Data loader 초기화 완료 !! {end - start:.5f} sec...\n'
+                  f'총 train 데이터 수 : {self.__len__()}\n')
+        elif task == 'val':
+            print(f'Data loader 초기화 완료 !! {end - start:.5f} sec...\n'
+                  f'총 validation 데이터 수 : {self.__len__()}\n')
 
     def __len__(self):
         return len(self.data_paths)
