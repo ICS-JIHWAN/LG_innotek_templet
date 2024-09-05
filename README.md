@@ -67,6 +67,9 @@ $ tensorboard --logdir=model_names --port=6006
 ![캡처](readme_image/tensorboard_train.PNG)
 ### 2. Scalar : Accuracy & loss
 - Train
+
 ![캡처](readme_image/train_acc&loss.PNG)
+
 - validation
+
 ![캡처](readme_image/validation_acc.PNG)
