@@ -1,14 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os
-import cv2
-import yaml
 import logging
 import shutil
 
 import torchvision.transforms as transforms
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import ImageDraw, ImageFont
 
 def set_logging(name=None):
     rank = int(os.getenv('RANK', -1))

@@ -1,5 +1,5 @@
 import os
-import sys
+import cv2
 import torch
 import numpy as np
 
@@ -8,7 +8,12 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from dataset.data_loader import data_class
-from utils.events import write_tbimg, write_scalar, write_tbPR
+from cam_algorithms import GradCAM
+from utils import (
+    write_tbimg, write_scalar, write_tbPR,
+    show_cam_on_image
+)
+
 
 
 class Trainer:
@@ -27,6 +32,7 @@ class Trainer:
 
         # model
         self.model = self.build_model()
+        self.cam = GradCAM
 
         # optimizer
         self.optimizer = self.build_optimizer()
@@ -185,13 +191,24 @@ class Trainer:
                 TP, FP, FN
             )
             #
+            # Get CAM
+            target_layers = [self.model.conv5_x]
+            with self.cam(model=self.model, target_layers=target_layers) as cam:
+                grayscale_cam = cam(
+                    input_tensor=images,
+                    targets=None,
+                )
+
+                cam_image = show_cam_on_image(images.permute(0, 2, 3, 1)*255, grayscale_cam, use_rgb=True)
+                cam_image = cv2.cvtColor(cam_image, cv2.COLOR_RGB2BGR)
+            #
             total += labels.size(0)
             correct += (predict == int_labels).sum().item()
             #
             pbar.set_postfix(loss=round(loss.item(), 2), acc=round(correct / total, 2))
             if step % 2 == 0:
                 # Scalar print
-                write_scalar(   # loss
+                write_scalar(  # loss
                     self.tblogger, loss.detach().cpu(), (epoch * self.max_epoch + step), title_text='training/loss'
                 )
                 write_scalar(  # accuracy
@@ -222,7 +239,7 @@ class Trainer:
                 images = batch_data[0].to(self.device)
                 labels = batch_data[1].to(self.device)
                 int_labels = batch_data[2].to(self.device)
-                cls_names  = batch_data[3]
+                cls_names = batch_data[3]
                 #
                 outputs = self.model(images)
                 #
