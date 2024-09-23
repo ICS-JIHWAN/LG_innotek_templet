@@ -3,10 +3,13 @@
 import os
 import logging
 import shutil
+import numpy as np
+import matplotlib.cm as cm
 
 import torchvision.transforms as transforms
 
-from PIL import ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont
+
 
 def set_logging(name=None):
     rank = int(os.getenv('RANK', -1))
@@ -30,9 +33,18 @@ def write_tbPR(tblogger, TP, FP, FN, epoch, task):
         tblogger.add_scalar('recall/{}/{}'.format(defect_idx, task), R[defect_idx], epoch + 1)
 
 
-def write_tbimg(tblogger, imgs, step, real_classes=None, pred_classes=None, task='train'):
+def write_tbimg(tblogger, imgs, step, cam_imgs=None, real_classes=None, pred_classes=None, task='train'):
+    _, c, h, w = imgs.shape
+    if cam_imgs is not None:
+        cam_colormaps = cm.jet(cam_imgs)  # Apply 'jet' colormap
+        cam_colormaps = (cam_colormaps[:, :, :, :3] * 255).astype(np.uint8)  # 컬러맵을 [0, 255] 범위로 변환 (RGB)
+
     for i in range(len(imgs)):
         print_img = transforms.ToPILImage()(imgs[i])
+        if cam_imgs is not None:
+            pil_cam_imgs = Image.fromarray(cam_colormaps[i])
+            pil_cam_imgs = pil_cam_imgs.resize((h, w), Image.BILINEAR)
+            print_img = Image.blend(print_img, pil_cam_imgs, 0.5)
         #
         draw = ImageDraw.Draw(print_img)
         #
@@ -48,12 +60,9 @@ def write_tbimg(tblogger, imgs, step, real_classes=None, pred_classes=None, task
         #
         draw.text((x + margin, y + margin), text, font=font, fill="white")
         #
-        try:
-            tblogger.add_image(
-                f'{task}_imgs/class_{real_classes[i]}',
-                transforms.ToTensor()(print_img),
-                step + 1,
-                dataformats='CHW'
-            )
-        except:
-            None
+        tblogger.add_image(
+            f'{task}_imgs/class_{real_classes[i]}',
+            transforms.ToTensor()(print_img),
+            step + 1,
+            dataformats='CHW'
+        )

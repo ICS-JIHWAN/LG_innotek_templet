@@ -32,7 +32,10 @@ class Trainer:
 
         # model
         self.model = self.build_model()
-        self.cam = GradCAM
+
+        # GradCAM 설정
+        target_layer = self.model.conv5_x[-1].residual_function[-2] # Target layer 설정
+        self.cam = GradCAM(self.model, target_layer=target_layer)
 
         # optimizer
         self.optimizer = self.build_optimizer()
@@ -168,8 +171,8 @@ class Trainer:
         correct = 0
         total = 0
         #
-        self.model.train()
         for step, batch_data in pbar:
+            self.model.train()
             images = batch_data[0].to(self.device)
             labels = batch_data[1].to(self.device)
             int_labels = batch_data[2].to(self.device)
@@ -185,22 +188,13 @@ class Trainer:
             #
             _, predict = torch.max(output, 1)
             #
+            # Get CAM
+            cam_images = self.cam.generate_cam(images, predict)
             # Get statistics
             TP, FP, FN = self.get_statistics(
                 self.model.predict(output.detach()), labels,
                 TP, FP, FN
             )
-            #
-            # Get CAM
-            target_layers = [self.model.conv5_x]
-            with self.cam(model=self.model, target_layers=target_layers) as cam:
-                grayscale_cam = cam(
-                    input_tensor=images,
-                    targets=None,
-                )
-
-                cam_image = show_cam_on_image(images.permute(0, 2, 3, 1)*255, grayscale_cam, use_rgb=True)
-                cam_image = cv2.cvtColor(cam_image, cv2.COLOR_RGB2BGR)
             #
             total += labels.size(0)
             correct += (predict == int_labels).sum().item()
@@ -217,8 +211,16 @@ class Trainer:
                 # Image print
                 write_tbimg(
                     self.tblogger, images.detach().cpu(),
-                    step, cls_names, self.train_loader.dataset.le.inverse_transform(predict.cpu())
+                    step, real_classes=cls_names, pred_classes=self.train_loader.dataset.le.inverse_transform(predict.cpu())
                 )
+                # GradCAM Image print
+                write_tbimg(
+                    self.tblogger, images.detach().cpu(),
+                    step, cam_imgs=cam_images, real_classes=str(cls_names) + '_cam',
+                    pred_classes=self.valid_loader.dataset.le.inverse_transform(predict.cpu()),
+                    task='train'
+                )
+
         # PR curve print
         write_tbPR(self.tblogger, TP, FP, FN, epoch, 'train')
         #
@@ -245,6 +247,9 @@ class Trainer:
                 #
                 _, predict = torch.max(outputs, 1)
                 #
+                # Get CAM
+                cam_images = self.cam.generate_cam(images, predict)
+                #
                 total += labels.size(0)
                 correct += (predict == int_labels).sum().item()
                 #
@@ -258,7 +263,13 @@ class Trainer:
                     # Image print
                     write_tbimg(
                         self.tblogger, images.detach().cpu(),
-                        step, cls_names, self.valid_loader.dataset.le.inverse_transform(predict.cpu()),
+                        step, real_classes=cls_names, pred_classes=self.valid_loader.dataset.le.inverse_transform(predict.cpu()),
+                        task='valid'
+                    )
+                    # GradCAM Image print
+                    write_tbimg(
+                        self.tblogger, images.detach().cpu(),
+                        step, cam_imgs=cam_images, real_classes=str(cls_names) + '_cam', pred_classes=self.valid_loader.dataset.le.inverse_transform(predict.cpu()),
                         task='valid'
                     )
 
