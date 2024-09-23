@@ -218,7 +218,7 @@ class Trainer:
                     self.tblogger, images.detach().cpu(),
                     step, cam_imgs=cam_images, real_classes=str(cls_names) + '_cam',
                     pred_classes=self.valid_loader.dataset.le.inverse_transform(predict.cpu()),
-                    task='train'
+                    task='train_cam'
                 )
 
         # PR curve print

@@ -14,9 +14,9 @@ if str(ROOT) not in sys.path:
 def get_args_parser(add_help=True):
     parser = argparse.ArgumentParser(description='DL Template for Pytorch', add_help=add_help)
     #
-    parser.add_argument('--gpu_id', default=None, type=int)
-    parser.add_argument('--train_path', default='./data', type=str)
-    parser.add_argument('--valid_path', default='./data', type=str)
+    parser.add_argument('--gpu_id', default=1, type=int)
+    parser.add_argument('--train_path', default='./data/training', type=str)
+    parser.add_argument('--valid_path', default='./data/testing', type=str)
     #
     parser.add_argument('--height', default=128, type=int)
     parser.add_argument('--width', default=128, type=int)

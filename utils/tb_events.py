@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os
+import cv2
 import logging
 import shutil
 import numpy as np
@@ -35,16 +36,18 @@ def write_tbPR(tblogger, TP, FP, FN, epoch, task):
 
 def write_tbimg(tblogger, imgs, step, cam_imgs=None, real_classes=None, pred_classes=None, task='train'):
     _, c, h, w = imgs.shape
-    if cam_imgs is not None:
-        cam_colormaps = cm.jet(cam_imgs)  # Apply 'jet' colormap
-        cam_colormaps = (cam_colormaps[:, :, :, :3] * 255).astype(np.uint8)  # 컬러맵을 [0, 255] 범위로 변환 (RGB)
 
     for i in range(len(imgs)):
         print_img = transforms.ToPILImage()(imgs[i])
         if cam_imgs is not None:
-            pil_cam_imgs = Image.fromarray(cam_colormaps[i])
-            pil_cam_imgs = pil_cam_imgs.resize((h, w), Image.BILINEAR)
-            print_img = Image.blend(print_img, pil_cam_imgs, 0.5)
+            heatmap = cv2.applyColorMap(np.uint8(cam_imgs[i]), cv2.COLORMAP_JET)
+            heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
+            heatmap = cv2.resize(heatmap, (h, w))
+            heatmap = np.float32(heatmap) / 255
+
+            cam = 0.7 * heatmap + 0.3 * np.array(imgs[i].permute(1, 2, 0))
+
+            print_img = Image.fromarray((cam * 255).astype(np.uint8))
         #
         draw = ImageDraw.Draw(print_img)
         #

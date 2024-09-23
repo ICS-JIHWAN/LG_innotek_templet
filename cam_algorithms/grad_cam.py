@@ -32,8 +32,7 @@ class GradCAM:
             one_hot_output[i, target_classes[i]] = 1
 
         # Get score for target class and backward to get gradients
-        target = output * one_hot_output
-        target.mean().backward(retain_graph=True)
+        output.backward(retain_graph=True, gradient=one_hot_output)
 
         # Global average pooling of gradients
         weights = torch.mean(self.gradients, dim=[2, 3], keepdim=True)
