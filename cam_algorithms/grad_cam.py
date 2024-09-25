@@ -49,5 +49,6 @@ class GradCAM:
 
         # Normalize each cam
         cams = (cams - cams_min) / (cams_max - cams_min + 1e-8)
+        cams = (255 * cams).type(torch.uint8)
 
         return cams.detach().cpu().numpy()

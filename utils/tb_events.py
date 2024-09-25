@@ -40,14 +40,13 @@ def write_tbimg(tblogger, imgs, step, cam_imgs=None, real_classes=None, pred_cla
     for i in range(len(imgs)):
         print_img = transforms.ToPILImage()(imgs[i])
         if cam_imgs is not None:
-            heatmap = cv2.applyColorMap(np.uint8(cam_imgs[i]), cv2.COLORMAP_JET)
-            heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
-            heatmap = cv2.resize(heatmap, (h, w))
-            heatmap = np.float32(heatmap) / 255
+            heatmap = cv2.resize(cam_imgs[i], (h, w))
+            heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
 
-            cam = 0.7 * heatmap + 0.3 * np.array(imgs[i].permute(1, 2, 0))
+            print_img = (255 * imgs[i]).permute(1, 2, 0).numpy().astype(np.uint8)
+            print_img = cv2.addWeighted(print_img, 0.5, heatmap, 0.5, 0, dtype=cv2.CV_8U)
 
-            print_img = Image.fromarray((cam * 255).astype(np.uint8))
+            print_img = Image.fromarray(print_img)
         #
         draw = ImageDraw.Draw(print_img)
         #

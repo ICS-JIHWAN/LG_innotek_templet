@@ -4,6 +4,11 @@ import torch
 import numpy as np
 
 from tqdm import tqdm
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score,
+    average_precision_score,
+    roc_auc_score, confusion_matrix
+)
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
@@ -13,7 +18,6 @@ from utils import (
     write_tbimg, write_scalar, write_tbPR,
     show_cam_on_image
 )
-
 
 
 class Trainer:
@@ -34,7 +38,7 @@ class Trainer:
         self.model = self.build_model()
 
         # GradCAM 설정
-        target_layer = self.model.conv5_x[-1].residual_function[-2] # Target layer 설정
+        target_layer = self.model.conv5_x[-1].residual_function[-2]  # Target layer 설정
         self.cam = GradCAM(self.model, target_layer=target_layer)
 
         # optimizer
@@ -163,6 +167,7 @@ class Trainer:
         print(f'\nTrain start : {epoch} / {self.max_epoch}')
         pbar = tqdm(enumerate(self.train_loader), total=self.max_stepnum)
         #
+        # metrix score for one epoch
         TP = np.zeros(self.num_class)
         FP = np.zeros(self.num_class)
         FN = np.zeros(self.num_class)
@@ -187,14 +192,12 @@ class Trainer:
             self.optimizer.step()
             #
             _, predict = torch.max(output, 1)
+            predict_cls_names = self.valid_loader.dataset.le.inverse_transform(predict.cpu())
             #
             # Get CAM
             cam_images = self.cam.generate_cam(images, predict)
             # Get statistics
-            TP, FP, FN = self.get_statistics(
-                self.model.predict(output.detach()), labels,
-                TP, FP, FN
-            )
+            # confusion_matrix(predict_cls_names, cls_names, labels=self.valid_loader.dataset.le.classes_)
             #
             total += labels.size(0)
             correct += (predict == int_labels).sum().item()
@@ -211,13 +214,13 @@ class Trainer:
                 # Image print
                 write_tbimg(
                     self.tblogger, images.detach().cpu(),
-                    step, real_classes=cls_names, pred_classes=self.train_loader.dataset.le.inverse_transform(predict.cpu())
+                    (epoch * self.max_epoch + step), real_classes=cls_names, pred_classes=predict_cls_names
                 )
                 # GradCAM Image print
                 write_tbimg(
                     self.tblogger, images.detach().cpu(),
-                    step, cam_imgs=cam_images, real_classes=str(cls_names) + '_cam',
-                    pred_classes=self.valid_loader.dataset.le.inverse_transform(predict.cpu()),
+                    (epoch * self.max_epoch + step), cam_imgs=cam_images, real_classes=cls_names,
+                    pred_classes=predict_cls_names,
                     task='train_cam'
                 )
 
@@ -263,14 +266,16 @@ class Trainer:
                     # Image print
                     write_tbimg(
                         self.tblogger, images.detach().cpu(),
-                        step, real_classes=cls_names, pred_classes=self.valid_loader.dataset.le.inverse_transform(predict.cpu()),
+                        step, real_classes=cls_names,
+                        pred_classes=self.valid_loader.dataset.le.inverse_transform(predict.cpu()),
                         task='valid'
                     )
                     # GradCAM Image print
                     write_tbimg(
                         self.tblogger, images.detach().cpu(),
-                        step, cam_imgs=cam_images, real_classes=str(cls_names) + '_cam', pred_classes=self.valid_loader.dataset.le.inverse_transform(predict.cpu()),
-                        task='valid'
+                        step, cam_imgs=cam_images, real_classes=cls_names,
+                        pred_classes=self.valid_loader.dataset.le.inverse_transform(predict.cpu()),
+                        task='valid_cam'
                     )
 
         val_acc = correct / total
