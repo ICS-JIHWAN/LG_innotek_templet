@@ -2,10 +2,13 @@
 # -*- coding: utf-8 -*-
 import os
 import cv2
+import io
 import logging
 import shutil
+import itertools
 import numpy as np
-import matplotlib.cm as cm
+import matplotlib.pyplot as plt
+import torch
 
 import torchvision.transforms as transforms
 
@@ -26,12 +29,10 @@ def write_scalar(tblogger, items, step, title_text=None):
     tblogger.add_scalar(f"{title_text}", items, step + 1)
 
 
-def write_tbPR(tblogger, TP, FP, FN, epoch, task):
-    P = TP / (TP + FP)
-    R = TP / (TP + FN)
-    for defect_idx in range(TP.shape[0]):
-        tblogger.add_scalar('precision/{}/{}'.format(defect_idx, task), P[defect_idx], epoch + 1)
-        tblogger.add_scalar('recall/{}/{}'.format(defect_idx, task), R[defect_idx], epoch + 1)
+def write_tbPR(tblogger, precision, recall, class_names, step, task):
+    for i, class_name in enumerate(class_names):
+        tblogger.add_scalar(f'{task}_Precision/{class_name}', precision[i], global_step=step)
+        tblogger.add_scalar(f'{task}_Recall/{class_name}', recall[i], global_step=step)
 
 
 def write_tbimg(tblogger, imgs, step, cam_imgs=None, real_classes=None, pred_classes=None, task='train'):
@@ -68,3 +69,68 @@ def write_tbimg(tblogger, imgs, step, cam_imgs=None, real_classes=None, pred_cla
             step + 1,
             dataformats='CHW'
         )
+
+
+def write_tbCM(tblogger, cm, class_names, step, task='train'):
+    figure = plot_confusion_matrix(cm, class_names)
+    cm_image = plot_to_image(figure)
+
+    tblogger.add_image(
+        f'{task}_cm/confusion matrix',
+        cm_image,
+        step + 1,
+        dataformats='CHW'
+    )
+
+
+def plot_confusion_matrix(cm, class_names):
+    """
+    Returns a matplotlib figure containing the plotted confusion matrix.
+
+    Args:
+      cm (array, shape = [n, n]): a confusion matrix of integer classes
+      class_names (array, shape = [n]): String names of the integer classes
+    """
+    figure = plt.figure(figsize=(8, 8))
+    plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+    plt.title("Confusion matrix")
+    plt.colorbar()
+    tick_marks = np.arange(len(class_names))
+    plt.xticks(tick_marks, class_names, rotation=45)
+    plt.yticks(tick_marks, class_names)
+
+    # Compute the labels from the normalized confusion matrix.
+    labels = np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], decimals=2)
+
+    # Use white text if squares are dark; otherwise black.
+    threshold = cm.max() / 2.
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        color = "white" if cm[i, j] > threshold else "black"
+        plt.text(j, i, labels[i, j], horizontalalignment="center", color=color)
+
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+    return figure
+
+
+def plot_to_image(figure):
+    """Converts the matplotlib plot specified by 'figure' to a PNG image and
+    returns it. The supplied figure is closed and inaccessible after this call."""
+    # Save the plot to a PNG in memory.
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    # Closing the figure prevents it from being displayed directly inside
+    # the notebook.
+    plt.close(figure)
+    buf.seek(0)
+    #
+    # PIL 이미지를 numpy 배열로 변환
+    image = Image.open(buf)
+    image = np.array(image)
+
+    image = image / 255.0
+
+    # 이미지를 3D tensor로 변환 (C, H, W 형식으로 변환)
+    image = torch.tensor(image).permute(2, 0, 1)
+    return image

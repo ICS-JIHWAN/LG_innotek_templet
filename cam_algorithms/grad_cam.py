@@ -24,7 +24,7 @@ class GradCAM:
 
     def generate_cam(self, input_tensor, target_classes):
         self.model.zero_grad()
-        output = self.model(input_tensor)
+        output = self.model(input_tensor).requires_grad_(True)
 
         # Create a one-hot encoded tensor for the target classes
         one_hot_output = torch.zeros_like(output)

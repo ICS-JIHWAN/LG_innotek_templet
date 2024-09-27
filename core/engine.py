@@ -5,9 +5,9 @@ import numpy as np
 
 from tqdm import tqdm
 from sklearn.metrics import (
-    accuracy_score, precision_score, recall_score,
-    average_precision_score,
-    roc_auc_score, confusion_matrix
+    precision_score, recall_score,
+    precision_recall_curve, roc_auc_score,
+    confusion_matrix
 )
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -15,7 +15,7 @@ from torch.utils.tensorboard import SummaryWriter
 from dataset.data_loader import data_class
 from cam_algorithms import GradCAM
 from utils import (
-    write_tbimg, write_scalar, write_tbPR,
+    write_tbimg, write_scalar, write_tbPR, write_tbCM,
     show_cam_on_image
 )
 
@@ -23,6 +23,7 @@ from utils import (
 class Trainer:
     def __init__(self, args, config, device=torch.device('cpu')):
         super().__init__()
+        # configuration
         self.cfg = config
         self.args = args
         self.device = device
@@ -168,21 +169,24 @@ class Trainer:
         pbar = tqdm(enumerate(self.train_loader), total=self.max_stepnum)
         #
         # metrix score for one epoch
-        TP = np.zeros(self.num_class)
-        FP = np.zeros(self.num_class)
-        FN = np.zeros(self.num_class)
-        TN = np.zeros(self.num_class)
+        y_true_int_list    = []
+        y_true_onehot_list = []
+        y_prob_list = []
+        y_pred_list = []
+        cm = np.zeros((self.num_class, self.num_class))
         #
         correct = 0
         total = 0
         #
+        self.model.train()
         for step, batch_data in pbar:
-            self.model.train()
-            images = batch_data[0].to(self.device)
-            labels = batch_data[1].to(self.device)
+            # Data info
+            images     = batch_data[0].to(self.device)  # Image
+            labels     = batch_data[1].to(self.device)
             int_labels = batch_data[2].to(self.device)
-            cls_names = batch_data[3]
+            cls_names  = batch_data[3]
             #
+            # Forward propagation
             output = self.model(images)
             #
             loss = self.compute_loss(output, labels.float())
@@ -191,13 +195,20 @@ class Trainer:
             loss.backward()
             self.optimizer.step()
             #
+            # Prediction info
             _, predict = torch.max(output, 1)
-            predict_cls_names = self.valid_loader.dataset.le.inverse_transform(predict.cpu())
+            predict_cls_names = self.train_loader.dataset.le.inverse_transform(predict.cpu())
+            #
+            y_true_int_list.append(int_labels.cpu().numpy())
+            y_true_onehot_list.append(labels.cpu().numpy())
+            y_prob_list.append(torch.nn.functional.softmax(output, dim=1).cpu().detach().numpy())
+            y_pred_list.append(predict.cpu().numpy())
             #
             # Get CAM
             cam_images = self.cam.generate_cam(images, predict)
+            #
             # Get statistics
-            # confusion_matrix(predict_cls_names, cls_names, labels=self.valid_loader.dataset.le.classes_)
+            cm += confusion_matrix(cls_names, predict_cls_names, labels=self.train_loader.dataset.le.classes_)
             #
             total += labels.size(0)
             correct += (predict == int_labels).sum().item()
@@ -205,28 +216,49 @@ class Trainer:
             pbar.set_postfix(loss=round(loss.item(), 2), acc=round(correct / total, 2))
             if step % 2 == 0:
                 # Scalar print
-                write_scalar(  # loss
+                write_scalar(  # Loss
                     self.tblogger, loss.detach().cpu(), (epoch * self.max_epoch + step), title_text='training/loss'
                 )
-                write_scalar(  # accuracy
+                write_scalar(  # Accuracy
                     self.tblogger, (correct / total), (epoch * self.max_epoch + step), title_text='training/accuracy'
                 )
                 # Image print
-                write_tbimg(
+                write_tbimg(    # Original Image
                     self.tblogger, images.detach().cpu(),
                     (epoch * self.max_epoch + step), real_classes=cls_names, pred_classes=predict_cls_names
                 )
                 # GradCAM Image print
-                write_tbimg(
+                write_tbimg(    # GradCAM Image
                     self.tblogger, images.detach().cpu(),
                     (epoch * self.max_epoch + step), cam_imgs=cam_images, real_classes=cls_names,
                     pred_classes=predict_cls_names,
                     task='train_cam'
                 )
-
-        # PR curve print
-        write_tbPR(self.tblogger, TP, FP, FN, epoch, 'train')
         #
+        # Confusion Matrix
+        write_tbCM(self.tblogger, cm, class_names=self.train_loader.dataset.le.classes_, step=epoch, task='train')
+        #
+        # PR curve print
+        y_pred = np.concatenate(y_pred_list)
+        y_true = np.concatenate(y_true_int_list)
+        y_pred_prob   = np.concatenate(y_prob_list)
+        y_true_onehot = np.concatenate(y_true_onehot_list)
+        #
+        precision_per_class = precision_score(y_true, y_pred, average=None)
+        recall_per_class    = recall_score(y_true, y_pred, average=None)
+        #
+        write_tbPR( # Precision & Recall per classes
+            self.tblogger, precision_per_class, recall_per_class,
+            class_names=self.train_loader.dataset.le.classes_, step=epoch, task='train'
+        )
+        #
+        for i in range(self.num_class):
+            self.tblogger.add_pr_curve(
+                f'train/PR Curve/{self.train_loader.dataset.le.classes_[i]}',
+                y_true_onehot[:, i], y_pred_prob[:, i], global_step=epoch
+           )
+        #
+        # Scheduler update
         if self.scheduler is not None:
             self.scheduler.step()
         #
@@ -235,23 +267,42 @@ class Trainer:
         print(f'\nValidation start : {epoch} / {self.max_epoch}')
         pbar = tqdm(enumerate(self.valid_loader), total=len(self.valid_loader))
         #
+        # metrix score for one epoch
+        y_true_int_list = []
+        y_true_onehot_list = []
+        y_prob_list = []
+        y_pred_list = []
+        cm = np.zeros((self.num_class, self.num_class))
+        #
         correct = 0
         total = 0
         #
         self.model.eval()
         with torch.no_grad():
             for step, batch_data in pbar:
-                images = batch_data[0].to(self.device)
+                # Data info
+                images = batch_data[0].to(self.device)  # Image
                 labels = batch_data[1].to(self.device)
                 int_labels = batch_data[2].to(self.device)
                 cls_names = batch_data[3]
                 #
-                outputs = self.model(images)
+                # Forward propagation
+                output = self.model(images)
                 #
-                _, predict = torch.max(outputs, 1)
+                # Prediction info
+                _, predict = torch.max(output, 1)
+                predict_cls_names = self.train_loader.dataset.le.inverse_transform(predict.cpu())
+                #
+                y_true_int_list.append(int_labels.cpu().numpy())
+                y_true_onehot_list.append(labels.cpu().numpy())
+                y_prob_list.append(torch.nn.functional.softmax(output, dim=1).cpu().detach().numpy())
+                y_pred_list.append(predict.cpu().numpy())
                 #
                 # Get CAM
                 cam_images = self.cam.generate_cam(images, predict)
+                #
+                # Get statistics
+                cm += confusion_matrix(cls_names, predict_cls_names, labels=self.train_loader.dataset.le.classes_)
                 #
                 total += labels.size(0)
                 correct += (predict == int_labels).sum().item()
@@ -259,38 +310,53 @@ class Trainer:
                 pbar.set_postfix(acc=round(correct / total, 2))
                 if step % 2 == 0:
                     # Scalar print
-                    write_scalar(  # accuracy
+                    write_scalar(  # Accuracy
                         self.tblogger, (correct / total), (epoch * self.max_epoch + step),
                         title_text='validation/accuracy'
                     )
                     # Image print
-                    write_tbimg(
+                    write_tbimg(    # Original Image
                         self.tblogger, images.detach().cpu(),
                         step, real_classes=cls_names,
                         pred_classes=self.valid_loader.dataset.le.inverse_transform(predict.cpu()),
-                        task='valid'
+                        task='validation'
                     )
                     # GradCAM Image print
-                    write_tbimg(
+                    write_tbimg(    # GradCAM Image
                         self.tblogger, images.detach().cpu(),
                         step, cam_imgs=cam_images, real_classes=cls_names,
                         pred_classes=self.valid_loader.dataset.le.inverse_transform(predict.cpu()),
-                        task='valid_cam'
+                        task='validation_cam'
                     )
 
+        #
+        # Confusion Matrix
+        write_tbCM(self.tblogger, cm, class_names=self.train_loader.dataset.le.classes_, step=epoch,
+                   task='validation')
+        #
+        # PR curve print
+        y_pred = np.concatenate(y_pred_list)
+        y_true = np.concatenate(y_true_int_list)
+        y_pred_prob = np.concatenate(y_prob_list)
+        y_true_onehot = np.concatenate(y_true_onehot_list)
+        #
+        precision_per_class = precision_score(y_true, y_pred, average=None)
+        recall_per_class = recall_score(y_true, y_pred, average=None)
+        #
+        write_tbPR(  # Precision & Recall per classes
+            self.tblogger, precision_per_class, recall_per_class,
+            class_names=self.train_loader.dataset.le.classes_, step=epoch, task='validation'
+        )
+        #
+        for i in range(self.num_class):
+            self.tblogger.add_pr_curve(
+                f'validation/PR Curve/{self.train_loader.dataset.le.classes_[i]}',
+                y_true_onehot[:, i], y_pred_prob[:, i], global_step=epoch
+            )
+        #
+        # best model save
         val_acc = correct / total
         if val_acc > self.best_score:
             self.best_score = val_acc
             torch.save(self.model.state_dict(), os.path.join(self.save_path, 'best_model.pth'))
 
-    @staticmethod
-    def get_statistics(pred, true, TP, FP, FN):
-        for defect_idx in range(pred.shape[1]):
-            pred_per_defect = pred[:, defect_idx].cpu().detach().numpy()
-            true_per_defect = true[:, defect_idx].cpu().detach().numpy()
-
-            TP[defect_idx] += np.sum(pred_per_defect * true_per_defect)
-            FP[defect_idx] += np.sum(pred_per_defect * (1 - true_per_defect))
-            FN[defect_idx] += np.sum((1 - pred_per_defect) * true_per_defect)
-
-        return TP, FP, FN
