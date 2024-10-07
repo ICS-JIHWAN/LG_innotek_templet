@@ -35,9 +35,9 @@ class data_class(Dataset):
         if task == 'train':
             print(f'Data loader 초기화 완료 !! {end - start:.5f} sec...\n'
                   f'총 train 데이터 수 : {self.__len__()}\n')
-        elif task == 'val':
+        elif task == 'val' or task == 'test':
             print(f'Data loader 초기화 완료 !! {end - start:.5f} sec...\n'
-                  f'총 validation 데이터 수 : {self.__len__()}\n')
+                  f'총 {task} 데이터 수 : {self.__len__()}\n')
 
     def __len__(self):
         return len(self.data_paths)

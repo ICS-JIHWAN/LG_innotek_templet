@@ -204,9 +204,6 @@ class Trainer:
             y_prob_list.append(torch.nn.functional.softmax(output, dim=1).cpu().detach().numpy())
             y_pred_list.append(predict.cpu().numpy())
             #
-            # Get CAM
-            cam_images = self.cam.generate_cam(images, predict)
-            #
             # Get statistics
             cm += confusion_matrix(cls_names, predict_cls_names, labels=self.train_loader.dataset.le.classes_)
             #
@@ -226,13 +223,6 @@ class Trainer:
                 write_tbimg(    # Original Image
                     self.tblogger, images.detach().cpu(),
                     (epoch * self.max_epoch + step), real_classes=cls_names, pred_classes=predict_cls_names
-                )
-                # GradCAM Image print
-                write_tbimg(    # GradCAM Image
-                    self.tblogger, images.detach().cpu(),
-                    (epoch * self.max_epoch + step), cam_imgs=cam_images, real_classes=cls_names,
-                    pred_classes=predict_cls_names,
-                    task='train_cam'
                 )
         #
         # Confusion Matrix
@@ -298,9 +288,6 @@ class Trainer:
                 y_prob_list.append(torch.nn.functional.softmax(output, dim=1).cpu().detach().numpy())
                 y_pred_list.append(predict.cpu().numpy())
                 #
-                # Get CAM
-                cam_images = self.cam.generate_cam(images, predict)
-                #
                 # Get statistics
                 cm += confusion_matrix(cls_names, predict_cls_names, labels=self.train_loader.dataset.le.classes_)
                 #
@@ -320,13 +307,6 @@ class Trainer:
                         step, real_classes=cls_names,
                         pred_classes=self.valid_loader.dataset.le.inverse_transform(predict.cpu()),
                         task='validation'
-                    )
-                    # GradCAM Image print
-                    write_tbimg(    # GradCAM Image
-                        self.tblogger, images.detach().cpu(),
-                        step, cam_imgs=cam_images, real_classes=cls_names,
-                        pred_classes=self.valid_loader.dataset.le.inverse_transform(predict.cpu()),
-                        task='validation_cam'
                     )
 
         #

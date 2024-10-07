@@ -5,7 +5,7 @@ def get_config_dict():
 
     model = dict(
         name='resnet',  # [lenet|alexnet|resnet]
-        num_class=3
+        num_channels=3
     )
 
     solver = dict(
