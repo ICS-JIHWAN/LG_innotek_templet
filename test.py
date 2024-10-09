@@ -1,16 +1,12 @@
 import os
 import sys
+import cv2
 import argparse
 import numpy as np
-
 import torch
 
 from tqdm import tqdm
-from sklearn.metrics import (
-    precision_score, recall_score,
-    precision_recall_curve, roc_auc_score,
-    confusion_matrix
-)
+from PIL import Image, ImageDraw, ImageFont
 from torch.utils.data import DataLoader
 
 from config.config import get_config_dict
@@ -26,14 +22,15 @@ def get_args_parser(add_help=True):
     parser = argparse.ArgumentParser(description='DL Template for Pytorch', add_help=add_help)
     #
     parser.add_argument('--gpu_id', default=0, type=int)
-    parser.add_argument('--test_path', default='./data/testing', type=str)
-    parser.add_argument('--save_path', default='./rums/resnet/best_model.pth', type=str)
+    parser.add_argument('--test_path', default='./data/test_dataset', type=str)
+    parser.add_argument('--save_path', default='/home/jhchoi/inno/LG_innotek_templet/runs/resnet/best_model.pth', type=str)
+    parser.add_argument('--num_class', default=3, type=int)
     #
     parser.add_argument('--height', default=224, type=int)
     parser.add_argument('--width', default=224, type=int)
     parser.add_argument('--channel', default=3, type=int)
     #
-    parser.add_argument('--batch_size', default=8, type=int)
+    parser.add_argument('--batch_size', default=1, type=int)
     parser.add_argument('--epoch', default=100, type=int)
     parser.add_argument('--num_workers', default=0, type=int)
     #
@@ -56,16 +53,15 @@ if __name__ == '__main__':
         path=args.test_path,
         height=args.height,
         width=args.width,
-        task='train'
+        task='test'
     )
     test_loader = DataLoader(
         test_object,
         batch_size=args.batch_size,
         shuffle=True,
-        num_workers=args.workers,
-        collate_fn=data_class.collate_fn
+        num_workers=args.num_workers,
     )
-    num_class = test_object.num_class
+    num_class = args.num_class
 
     # model load
     if cfg['model']['name'] == 'lenet':
@@ -82,7 +78,7 @@ if __name__ == '__main__':
         raise NotImplementedError
 
     try:
-        model.load_state_dict(torch.load(args.save_path))
+        model.load_state_dict(torch.load(args.save_path, weights_only=True))
     except OSError:
         print('cannot open : ', args.save_path)
 
@@ -94,56 +90,20 @@ if __name__ == '__main__':
     print(f'\nTest start')
     pbar = tqdm(enumerate(test_loader), total=len(test_loader))
 
-    # metrix score for one epoch
-    y_true_int_list = []
-    y_true_onehot_list = []
-    y_prob_list = []
-    y_pred_list = []
-    cm = np.zeros((num_class, num_class))
-    #
-    correct = 0
-    total = 0
     #
     model.eval()
     with torch.no_grad():
-        for step, batch_data in pbar:
+        for step, input_img in pbar:
             # Data info
-            images = batch_data[0].to(device)  # Image
-            labels = batch_data[1].to(device)
-            int_labels = batch_data[2].to(device)
-            cls_names = batch_data[3]
+            images = input_img[0].to(device)
             #
             # Forward propagation
             output = model(images)
             #
             # Prediction info
             _, predict = torch.max(output, 1)
-            predict_cls_names = test_loader.dataset.le.inverse_transform(predict.cpu())
             #
-            y_true_int_list.append(int_labels.cpu().numpy())
-            y_true_onehot_list.append(labels.cpu().numpy())
-            y_prob_list.append(torch.nn.functional.softmax(output, dim=1).cpu().detach().numpy())
-            y_pred_list.append(predict.cpu().numpy())
+            pbar.set_postfix(predict_class=predict.item())
             #
-            #
-            y_true_int_list.append(int_labels.cpu().numpy())
-            y_true_onehot_list.append(labels.cpu().numpy())
-            y_prob_list.append(torch.nn.functional.softmax(output, dim=1).cpu().detach().numpy())
-            y_pred_list.append(predict.cpu().numpy())
-            #
-            # Get statistics
-            cm += confusion_matrix(cls_names, predict_cls_names, labels=test_loader.dataset.le.classes_)
-            #
-            total += labels.size(0)
-            correct += (predict == int_labels).sum().item()
-            #
-            pbar.set_postfix(acc=round(correct / total, 2))
-
-    # PR curve print
-    y_pred = np.concatenate(y_pred_list)
-    y_true = np.concatenate(y_true_int_list)
-    y_pred_prob = np.concatenate(y_prob_list)
-    y_true_onehot = np.concatenate(y_true_onehot_list)
-    #
-    precision_per_class = precision_score(y_true, y_pred, average=None)
-    recall_per_class = recall_score(y_true, y_pred, average=None)
+            cv2.imshow('image', images[0].permute(1, 2, 0).cpu().numpy())
+            cv2.waitKey(0)

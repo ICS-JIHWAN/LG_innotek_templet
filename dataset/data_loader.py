@@ -1,4 +1,5 @@
 import os
+import cv2
 import glob
 import numpy as np
 import pickle
@@ -25,9 +26,11 @@ class data_class(Dataset):
         self.task = task
         #
         # 이미지 .pkl 파일로 변경
-        self.le, self.num_class = image_to_pkl(path)
-        self.data_paths = sorted(glob.glob(os.path.join(path, '*/*.pkl')))
-        #
+        if task == 'train' or task == 'val':
+            self.le, self.num_class = image_to_pkl(path)
+            self.data_paths = sorted(glob.glob(os.path.join(path, '*/*.pkl')))
+        elif task == 'test':
+            self.data_paths = sorted(glob.glob(os.path.join(path, '*')))
         self.fn_transform = self.get_transformer()
         #
         end = time.time()
@@ -43,22 +46,38 @@ class data_class(Dataset):
         return len(self.data_paths)
 
     def __getitem__(self, idx):
-        with open(self.data_paths[idx], 'rb') as f:
-            data_dict = pickle.load(f)
+        if self.task == 'train' or self.task == 'val':
+            with open(self.data_paths[idx], 'rb') as f:
+                data_dict = pickle.load(f)
 
-        image = data_dict['image']
+            image = data_dict['image']
 
-        image_rgb_pil = Image.fromarray(
-            image.astype(dtype=np.uint8)
-        ).convert('RGB')
+            image_rgb_pil = Image.fromarray(
+                image.astype(dtype=np.uint8)
+            ).convert('RGB')
 
-        image_tensor = self.fn_transform(image_rgb_pil).unsqueeze(dim=0)
+            image_tensor = self.fn_transform(image_rgb_pil).unsqueeze(dim=0)
 
-        int_label = torch.tensor(data_dict['integer_label']).unsqueeze(dim=0)
-        one_hot_label = torch.tensor(data_dict['one_hot_label']).unsqueeze(dim=0)
-        class_name = data_dict['class']
+            int_label = torch.tensor(data_dict['integer_label']).unsqueeze(dim=0)
+            one_hot_label = torch.tensor(data_dict['one_hot_label']).unsqueeze(dim=0)
+            class_name = data_dict['class']
 
-        return image_tensor, one_hot_label, int_label, class_name
+            return image_tensor, one_hot_label, int_label, class_name
+        elif self.task == 'test':
+            try:
+                im = cv2.imread(self.data_paths[idx])
+                assert im is not None, f"opencv cannot read image correctly or {self.data_paths[idx]} not exists"
+            except:
+                im = cv2.cvtColor(np.asarray(Image.open(self.data_paths[idx])), cv2.COLOR_RGB2BGR)
+                assert im is not None, f"Image Not Found {self.data_paths[idx]}, workdir: {os.getcwd()}"
+
+            image_rgb_pil = Image.fromarray(
+                im.astype(dtype=np.uint8)
+            ).convert('RGB')
+
+            image_tensor = self.fn_transform(image_rgb_pil).unsqueeze(dim=0)
+
+            return image_tensor
 
     def get_transformer(self):
         if self.augmentation:
