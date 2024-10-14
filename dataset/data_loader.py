@@ -61,8 +61,9 @@ class data_class(Dataset):
             int_label = torch.tensor(data_dict['integer_label']).unsqueeze(dim=0)
             one_hot_label = torch.tensor(data_dict['one_hot_label']).unsqueeze(dim=0)
             class_name = data_dict['class']
+            paths = data_dict['original_path']
 
-            return image_tensor, one_hot_label, int_label, class_name
+            return image_tensor, one_hot_label, int_label, class_name, paths
         elif self.task == 'test':
             try:
                 im = cv2.imread(self.data_paths[idx])
@@ -109,14 +110,15 @@ class data_class(Dataset):
 
     @staticmethod
     def collate_fn(batch):
-        inputs, one_hot_labels, int_labels, class_names = zip(*batch)
+        inputs, one_hot_labels, int_labels, class_names, paths = zip(*batch)
 
         inputs         = torch.cat(inputs, dim=0)
         one_hot_labels = torch.cat(one_hot_labels, dim=0)
         int_labels     = torch.cat(int_labels, dim=0)
         class_names    = list(class_names)
+        paths          = list(paths)
 
-        return inputs, one_hot_labels, int_labels, class_names
+        return inputs, one_hot_labels, int_labels, class_names, paths
 
 
 if __name__ == '__main__':

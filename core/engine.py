@@ -185,6 +185,7 @@ class Trainer:
             labels     = batch_data[1].to(self.device)
             int_labels = batch_data[2].to(self.device)
             cls_names  = batch_data[3]
+            paths      = batch_data[4]
             #
             # Forward propagation
             output = self.model(images)
@@ -198,6 +199,9 @@ class Trainer:
             # Prediction info
             _, predict = torch.max(output, 1)
             predict_cls_names = self.train_loader.dataset.le.inverse_transform(predict.cpu())
+            #
+            # mis match data save
+            mis_match_data = np.array(paths)[(int_labels != predict).cpu().numpy()]
             #
             y_true_int_list.append(int_labels.cpu().numpy())
             y_true_onehot_list.append(labels.cpu().numpy())
