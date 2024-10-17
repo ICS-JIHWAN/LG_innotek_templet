@@ -60,6 +60,13 @@ $ pip install -U scikit-learn
 $ pip install PyYAML
 ```
 
+### 9. Pandas
+```
+$ pip install pandas
+$ # 만약 "ModuleNotFoundError: No module named 'openpyxl'" 의 경우 아래 라이브러리 설치
+$ pip install openpyxl
+```
+
 ## ■ Tensorboard implementation
 ```
 $ tensorboard --logdir=model_names --port=6006

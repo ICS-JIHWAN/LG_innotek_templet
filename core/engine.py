@@ -2,6 +2,7 @@ import os
 import cv2
 import torch
 import numpy as np
+import pandas as pd
 
 from tqdm import tqdm
 from sklearn.metrics import (
@@ -51,7 +52,9 @@ class Trainer:
         # loss
         self.compute_loss = self.build_criterion()
 
-        # parameters
+        #
+        self.df_mismatch = pd.DataFrame()
+        #
         self.max_epoch = self.args.epoch
         self.max_stepnum = len(self.train_loader)
         #
@@ -159,6 +162,9 @@ class Trainer:
             for epoch in range(self.max_epoch):
                 self.train_one_epoch(epoch)
                 self.valid_one_epoch(epoch)
+            #
+            # mismatch data save
+            self.df_mismatch.to_excel(os.path.join(self.save_path, 'mismatch_data.xlsx'))
         except:
             print('Error in training loop...')
             raise
@@ -167,6 +173,11 @@ class Trainer:
         #
         print(f'\nTrain start : {epoch} / {self.max_epoch}')
         pbar = tqdm(enumerate(self.train_loader), total=self.max_stepnum)
+        #
+        # mismatch dataframe for one epoch
+        mismatch_data_paths = []
+        mismatch_data_label = []
+        mismatch_data_pred  = []
         #
         # metrix score for one epoch
         y_true_int_list    = []
@@ -200,13 +211,16 @@ class Trainer:
             _, predict = torch.max(output, 1)
             predict_cls_names = self.train_loader.dataset.le.inverse_transform(predict.cpu())
             #
-            # mis match data save
-            mis_match_data = np.array(paths)[(int_labels != predict).cpu().numpy()]
-            #
             y_true_int_list.append(int_labels.cpu().numpy())
             y_true_onehot_list.append(labels.cpu().numpy())
             y_prob_list.append(torch.nn.functional.softmax(output, dim=1).cpu().detach().numpy())
             y_pred_list.append(predict.cpu().numpy())
+            #
+            # Mismatch data info
+            mis_match_data = (int_labels != predict).cpu().numpy()
+            mismatch_data_paths.extend(np.array(paths)[mis_match_data])
+            mismatch_data_label.extend(np.array(cls_names)[mis_match_data])
+            mismatch_data_pred.extend(predict_cls_names[mis_match_data])
             #
             # Get statistics
             cm += confusion_matrix(cls_names, predict_cls_names, labels=self.train_loader.dataset.le.classes_)
@@ -215,7 +229,7 @@ class Trainer:
             correct += (predict == int_labels).sum().item()
             #
             pbar.set_postfix(loss=round(loss.item(), 2), acc=round(correct / total, 2))
-            if step % 2 == 0:
+            if step % self.args.tb_step == 0:
                 # Scalar print
                 write_scalar(  # Loss
                     self.tblogger, loss.detach().cpu(), (epoch * self.max_epoch + step), title_text='training/loss'
@@ -228,6 +242,15 @@ class Trainer:
                     self.tblogger, images.detach().cpu(),
                     (epoch * self.max_epoch + step), real_classes=cls_names, pred_classes=predict_cls_names
                 )
+        #
+        # Mismatch dataframe
+        df_mismatch_epoch = pd.DataFrame({
+            'epoch': [epoch+1]*len(mismatch_data_paths),
+            'path': mismatch_data_paths,
+            'true_label': mismatch_data_label,
+            'pred_label': mismatch_data_pred
+        })
+        self.df_mismatch = pd.concat((self.df_mismatch, df_mismatch_epoch))
         #
         # Confusion Matrix
         write_tbCM(self.tblogger, cm, class_names=self.train_loader.dataset.le.classes_, step=epoch, task='train')
@@ -299,7 +322,7 @@ class Trainer:
                 correct += (predict == int_labels).sum().item()
                 #
                 pbar.set_postfix(acc=round(correct / total, 2))
-                if step % 2 == 0:
+                if step % self.args.tb_step == 0:
                     # Scalar print
                     write_scalar(  # Accuracy
                         self.tblogger, (correct / total), (epoch * self.max_epoch + step),
@@ -342,5 +365,9 @@ class Trainer:
         val_acc = correct / total
         if val_acc > self.best_score:
             self.best_score = val_acc
-            torch.save(self.model.state_dict(), os.path.join(self.save_path, 'best_model.pth'))
+            save_dict = {
+                'model': self.model.state_dict(),
+                'lb_encoder': self.train_loader.dataset.le
+            }
+            torch.save(save_dict, os.path.join(self.save_path, 'best_model.pth'))
 
