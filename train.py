@@ -23,7 +23,7 @@ def get_args_parser(add_help=True):
     parser.add_argument('--channel', default=3, type=int)
     #
     parser.add_argument('--batch_size', default=16, type=int)
-    parser.add_argument('--epoch', default=2, type=int)
+    parser.add_argument('--epoch', default=50, type=int)
     parser.add_argument('--num_workers', default=8, type=int)
     parser.add_argument('--tb_step', default=10, type=int)
     #

@@ -78,7 +78,7 @@ class data_class(Dataset):
 
             image_tensor = self.fn_transform(image_rgb_pil).unsqueeze(dim=0)
 
-            return image_tensor
+            return image_tensor, self.data_paths[idx]
 
     def get_transformer(self):
         if self.augmentation:
