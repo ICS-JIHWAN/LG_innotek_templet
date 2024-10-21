@@ -24,7 +24,7 @@ def get_args_parser(add_help=True):
     parser.add_argument('--gpu_id', default=1, type=int)
     parser.add_argument('--test_path', default='./data/test_dataset', type=str)
     parser.add_argument('--save_path', default='/home/jhchoi/inno/LG_innotek_templet/runs/resnet/best_model.pth', type=str)
-    parser.add_argument('--num_class', default=2, type=int)
+    parser.add_argument('--num_class', default=3, type=int)
     #
     parser.add_argument('--height', default=224, type=int)
     parser.add_argument('--width', default=224, type=int)
