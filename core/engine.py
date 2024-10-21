@@ -186,6 +186,7 @@ class Trainer:
         y_pred_list = []
         cm = np.zeros((self.num_class, self.num_class))
         #
+        losses = 0
         correct = 0
         total = 0
         #
@@ -225,22 +226,23 @@ class Trainer:
             # Get statistics
             cm += confusion_matrix(cls_names, predict_cls_names, labels=self.train_loader.dataset.le.classes_)
             #
+            losses += loss.item()
             total += labels.size(0)
             correct += (predict == int_labels).sum().item()
             #
             pbar.set_postfix(loss=round(loss.item(), 2), acc=round(correct / total, 2))
-            if step % self.args.tb_step == 0:
-                # Scalar print
-                write_scalar(  # Loss
-                    self.tblogger, loss.detach().cpu(), (epoch * self.max_epoch + step), title_text='training/loss'
-                )
-                write_scalar(  # Accuracy
-                    self.tblogger, (correct / total), (epoch * self.max_epoch + step), title_text='training/accuracy'
-                )
+            if step % self.args.tb_step == 0: # loss, accuracy, image 스텝마다 보고 싶은 경우
+            #     # Scalar print
+            #     write_scalar(  # Loss
+            #         self.tblogger, loss.detach().cpu(), (epoch * self.max_stepnum + step), title_text='training/loss'
+            #     )
+            #     write_scalar(  # Accuracy
+            #         self.tblogger, (correct / total), (epoch * self.max_stepnum + step), title_text='training/accuracy'
+            #     )
                 # Image print
                 write_tbimg(    # Original Image
                     self.tblogger, images.detach().cpu(),
-                    (epoch * self.max_epoch + step), real_classes=cls_names, pred_classes=predict_cls_names
+                    (epoch * self.max_stepnum + step), real_classes=cls_names, pred_classes=predict_cls_names
                 )
         #
         # Mismatch dataframe
@@ -274,6 +276,14 @@ class Trainer:
                 f'train/PR Curve/{self.train_loader.dataset.le.classes_[i]}',
                 y_true_onehot[:, i], y_pred_prob[:, i], global_step=epoch
            )
+        #
+        # Scalar print
+            write_scalar(  # Loss
+                self.tblogger, (losses/total), epoch, title_text='training/loss'
+            )
+            write_scalar(  # Accuracy
+                self.tblogger, (correct / total), epoch, title_text='training/accuracy'
+            )
         #
         # Scheduler update
         if self.scheduler is not None:
