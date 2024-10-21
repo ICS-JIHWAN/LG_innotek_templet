@@ -20,6 +20,11 @@ from utils import (
     show_cam_on_image
 )
 
+# This should work for any tensorflow > 1.14
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # FATAL
+# or you can use below codes
+# import warnings
+# warnings.filterwarnings("ignore", category=FutureWarning)
 
 class Trainer:
     def __init__(self, args, config, device=torch.device('cpu')):
