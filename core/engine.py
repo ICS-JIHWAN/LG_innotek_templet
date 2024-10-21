@@ -333,11 +333,11 @@ class Trainer:
                 #
                 pbar.set_postfix(acc=round(correct / total, 2))
                 if step % self.args.tb_step == 0:
-                    # Scalar print
-                    write_scalar(  # Accuracy
-                        self.tblogger, (correct / total), (epoch * self.max_epoch + step),
-                        title_text='validation/accuracy'
-                    )
+                    # # Scalar print
+                    # write_scalar(  # Accuracy
+                    #     self.tblogger, (correct / total), (epoch * self.max_epoch + step),
+                    #     title_text='validation/accuracy'
+                    # )
                     # Image print
                     write_tbimg(    # Original Image
                         self.tblogger, images.detach().cpu(),
@@ -363,6 +363,11 @@ class Trainer:
         write_tbPR(  # Precision & Recall per classes
             self.tblogger, precision_per_class, recall_per_class,
             class_names=self.train_loader.dataset.le.classes_, step=epoch, task='validation'
+        )
+        #
+        write_scalar(  # Accuracy
+            self.tblogger, (correct / total), epoch,
+            title_text='validation/accuracy'
         )
         #
         for i in range(self.num_class):
